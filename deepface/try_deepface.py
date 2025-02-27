@@ -54,28 +54,54 @@ def main():
     cv2.destroyAllWindows()
 
 
+# def draw_face_box(frame, analysis):
+#     """
+#     根据 DeepFace 返回的分析数据，在图像上绘制人脸框和情绪信息
+#     """
+#     region = analysis['region']  # 字典，包含(x,y,w,h)
+#     emotion = analysis['dominant_emotion']  # 字符串，如 'happy', 'sad', 'neutral' 等
+#
+#     x, y, w, h = region['x'], region['y'], region['w'], region['h']
+#     # 绘制矩形框
+#     cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 0, 255), 2)
+#
+#     # 在方框上方写上检测到的情绪
+#     cv2.putText(
+#         frame,
+#         emotion,
+#         (x, y - 10),  # 字会显示在方框的上方
+#         cv2.FONT_HERSHEY_SIMPLEX,
+#         0.9,  # 字体大小
+#         (0, 255, 0),  # 字体颜色
+#         2  # 线宽
+#     )
+
 def draw_face_box(frame, analysis):
     """
     根据 DeepFace 返回的分析数据，在图像上绘制人脸框和情绪信息
     """
-    region = analysis['region']  # 字典，包含(x,y,w,h)
-    emotion = analysis['dominant_emotion']  # 字符串，如 'happy', 'sad', 'neutral' 等
+    region = analysis['region']  # 人脸区域信息
+    emotions = analysis['emotion']  # 各情绪置信度
 
     x, y, w, h = region['x'], region['y'], region['w'], region['h']
+
     # 绘制矩形框
     cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 0, 255), 2)
+
+    # 将情绪置信度转换成文本，只保留前三种最可能的情绪
+    top_emotions = sorted(emotions.items(), key=lambda item: item[1], reverse=True)[:3]
+    emotion_text = ", ".join([f"{e}: {round(p, 1)}%" for e, p in top_emotions])
 
     # 在方框上方写上检测到的情绪
     cv2.putText(
         frame,
-        emotion,
-        (x, y - 10),  # 字会显示在方框的上方
+        emotion_text,
+        (x, y - 10),  # 文字位置（框的上方）
         cv2.FONT_HERSHEY_SIMPLEX,
-        0.9,  # 字体大小
-        (0, 255, 0),  # 字体颜色
-        2  # 线宽
+        0.5,  # 字体大小
+        (0, 255, 0),  # 字体颜色（绿色）
+        1  # 线宽
     )
-
 
 if __name__ == "__main__":
     main()

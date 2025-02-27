@@ -1,1 +1,7 @@
-deepface
+Flask==2.2.5
+numpy==1.24.3
+opencv-python-headless==4.7.0.72
+deepface==0.0.79
+Pillow==9.5.0
+gunicorn==20.1.0
+tf-keras
