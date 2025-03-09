@@ -31,27 +31,27 @@ def main():
     load_dotenv()
     openai_api_key = os.getenv("OPENAI_API_KEY")
     if not openai_api_key:
-        print("请先在环境变量或 .env 文件中配置 OPENAI_API_KEY")
+        print("Please set OPENAI_API_KEY in environment variables or .env file")
         sys.exit(1)
 
-    # 从环境变量获取 MongoDB 连接 URI
+    # get the MongoDB connection URI from the environment variables
     mongo_uri = os.getenv("MONGO_URI", "mongodb://admin:password@mongo:27017/")
 
-    # 连接 MongoDB
+    # connect to MongoDB
     # client = MongoClient(mongo_uri)
     client = MongoClient("mongodb://admin:password@localhost:27017/admin")
     db = client["conversational_agent"]
     collection = db["users"]
 
-    # 创建情绪分析器 和 对话链
+    # Emotion Analyzer and Conversation Chain
     analyzer = EmotionAnalyzer()
     chain = create_mental_health_chain_with_prompt(openai_api_key)
 
-    # 人脸识别 和 创建新用户
+    # Face Recognition and Create New User 
     User = face_recognize(collection)
 
     print("Hello " + User.user_name + " How is everything going?")
-    print("请输入音频文件路径(或直接输入文本)，输入 'exit' 退出。")
+    print("Please enter the audio file path (or enter text directly), enter 'exit' to exit.")
 
     while True:
         user_input = input(">>> ")
@@ -59,14 +59,14 @@ def main():
             print("See you! Hope you enjoy!")
             break
 
-        # 判断是文本还是音频文件路径
+        # Determine whether it is a text or an audio file path
         if user_input.endswith(".wav") or user_input.endswith(".mp3"):
-            # 做语音转文本
+            # transcribe audio to text
             try:
                 text_content = transcribe_audio(user_input, model_name="base")
-                print(f"[语音识别结果]: {text_content}")
+                print(f"[Transcription Result]: {text_content}")
             except Exception as e:
-                print(f"音频转写失败: {e}")
+                print(f"Audio transcription failed: {e}")
                 continue
         else:
             # Text
@@ -74,30 +74,30 @@ def main():
 
         # Emotion Analysis
         emotion_label = analyzer.analyze_emotion(text_content)
-        print(f"[情绪分析]: {emotion_label}")
+        print(f"[emotion_label]: {emotion_label}")
 
         # Use Conversational Agent to Generate Response
         try:
             combined_input = f"emotion: {emotion_label}\n text: {text_content}"
             response = chain.invoke({"input": combined_input})
 
-            print(f"AI回复: {response['text']}")
+            print(f"AI response: {response['text']}") 
 
             now = datetime.now()
-            timestamp = now.strftime("%Y-%m-%d %H:%M:%S")  # 格式化为 "YYYY-MM-DD HH:MM:SS"
+            timestamp = now.strftime("%Y-%m-%d %H:%M:%S")  # format as "YYYY-MM-DD HH:MM:SS"
             one_conversation = Conversation(combined_input, response['text'], timestamp)
             # Update Conversation
             update_conversation(collection, User, one_conversation)
 
             text_to_speech( response['text'], "/Users/xchange/PycharmProjects/Conversational_Agents/conversation/output")
         except Exception as e:
-            print(f"生成回复失败: {e}")
+            print(f"Failed to generate response: {e}")
 
 
 
 
 def init_user(collection, new_user):
-    # 构造用户文档，其中 conversations 字段初始化为空列表
+    # Construct a user document, where the conversations field is initialized to an empty list
     user = {
         "name": new_user.user_name,
         "age": new_user.user_age,
@@ -119,12 +119,12 @@ def init_user(collection, new_user):
 def face_recognize(collection):
 
 
-    # 加入人脸识别判断逻辑
+    # Add face recognition judgment logic
     User_is_created = False
     if User_is_created:
-        return User("Peng Xu",22,"Tortured by TU Delft")# User_id
+        return User("Peng Xu",22,"Tortured by TU Delft") # User_id
     else:
-        print("Nice to meet you! What is your name？")
+        print("Nice to meet you! What is your name?")
         user_name_input = input(">>> ")
         print("Nice to meet you! " + user_name_input)
         print("Now I have to gather some import information from you, what is your age?")
@@ -138,7 +138,6 @@ def face_recognize(collection):
         return new_user
 
 def update_memory():
-    #调用数据库存储
 
     return True
 
