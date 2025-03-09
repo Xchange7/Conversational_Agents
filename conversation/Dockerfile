@@ -16,5 +16,5 @@ COPY . .
 # 如果应用需要监听端口（例如使用 Flask/FastAPI），可以开放端口
 # EXPOSE 8000
 
-# 设置容器启动后运行的命令（这里假设 main.py 是入口）
+# 设置容器启动后运行的命令（这里假设 app.py 是入口）
 CMD ["python", "main.py"]

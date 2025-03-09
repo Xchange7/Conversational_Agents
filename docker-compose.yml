@@ -1,0 +1,74 @@
+version: "3.10"
+
+services:
+  conversation:
+    build:
+      context: ./conversation
+      dockerfile: Dockerfile
+    container_name: conversation_service
+    ports:
+      - "5001:5000"  # 假设内部使用5000端口，对外映射到宿主机5001
+    depends_on:
+      - mongo
+
+
+#  deepface:
+#    build:
+#      context: ./deepface
+#      dockerfile: test
+#    container_name: deepface_service
+#    ports:
+#      - "5002:5000"  # 对外映射到5002
+#    depends_on:
+#      - mongo
+
+  mongo:
+    image: mongo:latest
+    container_name: mongo
+    restart: always
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password
+    volumes:
+      - ./data:/data/db # Location of DB
+#  mongo:
+#    build:
+#      context: ./MongoDB
+#      dockerfile: MongoDB/test
+#    container_name: my_mongo
+#    ports:
+#      - "27017:27017"
+#    volumes:
+#      - ./data:/data/db
+#    networks:
+#      - mynetwork
+    # image: mongo:latest
+
+#  frontend:
+#    build: ./frontend
+#    ports:
+#      - "3000:80"
+#    depends_on:
+#      - backend
+#    networks:
+#      - app-network
+#
+#  backend:
+#    build: ./backend
+#    ports:
+#      - "5000:5000"
+#    networks:
+#      - app-network
+
+#  weaviate:
+#    build:
+#      context: ./weaviate
+#      dockerfile: test
+#    container_name: weaviate_service
+#    ports:
+#      - "8080:8080"
+#    depends_on:
+#      - mongo
+#    # ...
