@@ -16,5 +16,9 @@ COPY . .
 # 如果应用需要监听端口（例如使用 Flask/FastAPI），可以开放端口
 # EXPOSE 8000
 
-# 设置容器启动后运行的命令（这里假设 app.py 是入口）
-CMD ["python", "main.py"]
+ENV OPENAI_API_KEY=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
+ENV TOKENIZERS_PARALLELISM=false
+ENV MONGO_URI=mongodb://admin:password@mongo:27017/
+
+
+CMD ["python", "app.py"]
