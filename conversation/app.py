@@ -9,6 +9,8 @@ from mental_health_chain import create_mental_health_chain_with_prompt
 
 from pymongo import MongoClient
 from datetime import datetime
+from text_to_speech import text_to_speech
+
 
 class User:
     def __init__(self, user_name,user_age, user_problem):
@@ -38,7 +40,6 @@ def main():
     # 连接 MongoDB
     # client = MongoClient(mongo_uri)
     client = MongoClient("mongodb://admin:password@localhost:27017/admin")
-
     db = client["conversational_agent"]
     collection = db["users"]
 
@@ -87,6 +88,8 @@ def main():
             one_conversation = Conversation(combined_input, response['text'], timestamp)
             # Update Conversation
             update_conversation(collection, User, one_conversation)
+
+            text_to_speech( response['text'], "/Users/xchange/PycharmProjects/Conversational_Agents/conversation/output")
         except Exception as e:
             print(f"生成回复失败: {e}")
 
@@ -110,6 +113,8 @@ def init_user(collection, new_user):
     except Exception as e:
         print(e)
         return False
+
+
 
 def face_recognize(collection):
 
