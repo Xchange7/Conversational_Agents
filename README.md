@@ -2,7 +2,7 @@
 
 ## Microservices
 
-1. Conversation
+### 1. Conversation
 
 Run:
 ```
@@ -11,7 +11,7 @@ docker build -t conversation .
 ```
 
 
-2. Deepface
+### 2. Deepface
 
 
 
@@ -34,9 +34,30 @@ docker run -d \
 ```
 
 
-4. Database -- MongoDB
+### 4. Database -- MongoDB
 
 We could choose Weaviate or Mongo DB as our database
+
+**Login the database**
+```bash
+docker exec -it mongo mongosh -u admin -p password --authenticationDatabase admin
+```
+
+**查看数据库中的信息**
+```bash
+use conversational_agent
+
+db.users.find().pretty()
+```
+
+
+### Docker使用技巧
+
+使用Docker进入一个container
+```bash
+docker exec -it <container_id_or_name> /bin/bash
+```
+
 
 5. Frontend
 
