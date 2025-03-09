@@ -4,9 +4,12 @@ data
 __pycache__
 ./*/__pycache__
 .ipynb_checkpoints
+.vscode
 
 Test.ipynb
 run_deepface.ipynb
 
 # see .env.default for the format of .env
 .env
+
+.DS_Store
