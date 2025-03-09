@@ -3,7 +3,10 @@ langchain==0.3.19
 langchain_community==0.3.18
 SpeechRecognition==3.8.1
 pydub==0.25.1
-whisper==1.1.10 # Could be Replaced
+
+# whisper==1.1.10 # Could be Replaced  ## FIXME: Not work for me
+openai-whisper
+
 transformers==4.49.0
 torch==2.6.0
 dotenv
@@ -13,3 +16,5 @@ numpy
 pyAudioAnalysis
 scipy
 matplotlib
+gtts
+langdetect
