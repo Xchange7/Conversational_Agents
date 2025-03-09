@@ -6,25 +6,12 @@ from dotenv import load_dotenv
 from speech_to_text import transcribe_audio
 from emotion_analyzer import EmotionAnalyzer
 from mental_health_chain import create_mental_health_chain_with_prompt
-
-from pymongo import MongoClient
-from datetime import datetime
 from text_to_speech import text_to_speech
+from datetime import datetime
+from pathlib import Path
 
-
-class User:
-    def __init__(self, user_name,user_age, user_problem):
-        self.user_id = None
-        self.user_name = user_name
-        self.user_age = user_age
-        self.user_problem = user_problem
-
-
-class Conversation:
-    def __init__(self, user_input, AI_output, timestamp):
-        self.user_input = user_input
-        self.AI_output = AI_output
-        self.timestamp = timestamp
+# Import the database functions from db.py
+from db import DB, User, Conversation
 
 
 def main():
@@ -34,21 +21,15 @@ def main():
         print("Please set OPENAI_API_KEY in environment variables or .env file")
         sys.exit(1)
 
-    # get the MongoDB connection URI from the environment variables
-    mongo_uri = os.getenv("MONGO_URI", "mongodb://admin:password@mongo:27017/")
-
     # connect to MongoDB
-    # client = MongoClient(mongo_uri)
-    client = MongoClient("mongodb://admin:password@localhost:27017/admin")
-    db = client["conversational_agent"]
-    collection = db["users"]
+    db_instance = DB()
 
     # Emotion Analyzer and Conversation Chain
     analyzer = EmotionAnalyzer()
     chain = create_mental_health_chain_with_prompt(openai_api_key)
 
     # Face Recognition and Create New User 
-    User = face_recognize(collection)
+    User = face_recognize(db_instance)
 
     print("Hello " + User.user_name + " How is everything going?")
     print("Please enter the audio file path (or enter text directly), enter 'exit' to exit.")
@@ -87,36 +68,22 @@ def main():
             timestamp = now.strftime("%Y-%m-%d %H:%M:%S")  # format as "YYYY-MM-DD HH:MM:SS"
             one_conversation = Conversation(combined_input, response['text'], timestamp)
             # Update Conversation
-            update_conversation(collection, User, one_conversation)
+            db_instance.update_conversation(User, one_conversation)
 
-            text_to_speech( response['text'], "/Users/xchange/PycharmProjects/Conversational_Agents/conversation/output")
+            # get current path with Pathlib
+            current_path = Path(__file__).parent
+
+            # text_to_speech( response['text'], "/Users/xchange/PycharmProjects/Conversational_Agents/conversation/output")
+            # use current_path instead of hardcoding the path
+            text_to_speech(response['text'], current_path / "output")
+            
         except Exception as e:
             print(f"Failed to generate response: {e}")
 
 
 
 
-def init_user(collection, new_user):
-    # Construct a user document, where the conversations field is initialized to an empty list
-    user = {
-        "name": new_user.user_name,
-        "age": new_user.user_age,
-        "problem": new_user.user_problem,
-        "conversations": []
-    }
-    try:
-        insert_result = collection.insert_one(user)
-        print("Your User ID is : " + str(insert_result.inserted_id))
-        new_user.user_id = insert_result.inserted_id
-        return True
-
-    except Exception as e:
-        print(e)
-        return False
-
-
-
-def face_recognize(collection):
+def face_recognize(db_instance):
 
 
     # Add face recognition judgment logic
@@ -134,27 +101,10 @@ def face_recognize(collection):
 
         new_user = User(user_name_input, user_age_input, user_problem_input)
 
-        init_user(collection, new_user)
+        db_instance.init_user(new_user)
         return new_user
 
 def update_memory():
-
-    return True
-
-def update_conversation(collection, user, user_conversation):
-    conversation = {"timestamp": user_conversation.timestamp,
-                    "user_input": user_conversation.user_input,
-                    "AI_output": user_conversation.AI_output}
-    try:
-        result = collection.update_one(
-            {"_id": user.user_id},
-            {"$push": {"conversations": conversation}},
-        )
-        if result.modified_count ==1:
-            print("Result of User is Updated")
-
-    except Exception as e:
-        print(e)
 
     return True
 
