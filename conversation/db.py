@@ -22,10 +22,13 @@ class Conversation:
 class DB:
     def __init__(self):
         load_dotenv()
-        # run conversation inside docker
-        # mongo_uri = os.getenv("MONGO_URI", "mongodb://admin:password@mongo:27017/")
-        # run conversation locally
-        mongo_uri = os.getenv("MONGO_URI", "mongodb://admin:password@localhost:27017/")
+        use_docker_for_conversation = os.getenv("USE_DOCKER_FOR_CONVERSATION", "True")
+        if use_docker_for_conversation.lower() == "True":
+            # run conversation inside docker
+            mongo_uri = os.getenv("MONGO_URI", "mongodb://admin:password@mongo:27017/")
+        else:
+            # run conversation locally
+            mongo_uri = os.getenv("MONGO_URI", "mongodb://admin:password@localhost:27017/")
 
         self.client = pymongo.MongoClient(mongo_uri)
         self.db = self.client["conversations"]  # Database name
