@@ -4,11 +4,11 @@ langchain_community==0.3.18
 SpeechRecognition==3.8.1
 pydub==0.25.1
 
-# whisper==1.1.10 # Could be Replaced  ## FIXME: Not work for me
+# ffmpeg needed for whisper
 openai-whisper
 
 transformers==4.49.0
-torch==2.6.0
+# torch==2.6.0
 dotenv
 langchain_openai
 pymongo
@@ -18,3 +18,5 @@ scipy
 matplotlib
 gtts
 langdetect
+gradio
+loguru

@@ -22,7 +22,11 @@ class Conversation:
 class DB:
     def __init__(self):
         load_dotenv()
-        mongo_uri = os.getenv("MONGO_URI", "mongodb://admin:password@mongo:27017/")
+        # run conversation inside docker
+        # mongo_uri = os.getenv("MONGO_URI", "mongodb://admin:password@mongo:27017/")
+        # run conversation locally
+        mongo_uri = os.getenv("MONGO_URI", "mongodb://admin:password@localhost:27017/")
+
         self.client = pymongo.MongoClient(mongo_uri)
         self.db = self.client["conversations"]  # Database name
         self.users = self.db["users"]  # Collection for users
@@ -65,3 +69,17 @@ class DB:
             print(e)
 
         return True
+
+    def get_user_by_name(self, user_name: str):
+        """Retrieves a user from the database by their name."""
+        try:
+            user = self.users.find_one({"name": user_name})
+            if user:
+                retrieved_user = User(user["name"], user["age"], user["problem"])
+                retrieved_user.user_id = user["_id"]
+                return retrieved_user
+            else:
+                return None
+        except Exception as e:
+            print(e)
+            return None

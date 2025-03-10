@@ -3,50 +3,50 @@ from deepface import DeepFace
 
 
 def main():
-    # 打开摄像头（0 表示默认摄像头，如果有多个摄像头可以尝试 1,2,...）
+    # Open the camera (0 represents the default camera, if you have multiple cameras you can try 1,2,...)
     cap = cv2.VideoCapture(0)
 
     if not cap.isOpened():
-        print("无法打开摄像头")
+        print("Unable to open camera")
         return
 
     while True:
         ret, frame = cap.read()
         if not ret:
-            print("无法读取摄像头帧")
+            print("Unable to read camera frame")
             break
 
-        # 每隔若干帧进行一次识别，可以减少计算量
-        # 本例中简化，假设每帧都做分析，实际可加个计数器控制
+        # Process only every few frames to reduce computation
+        # This example is simplified, assuming every frame is analyzed; in practice, you could add a counter
 
-        # analyze 方法返回一个列表或字典，包含检测到的人脸的分析信息
-        # 如果帧中检测不到人脸，可能会抛出异常，需要 try/except 捕获处理
+        # The analyze method returns a list or dictionary containing analysis information of detected faces
+        # If no face is detected in the frame, an exception may be thrown, so we need try/except to handle it
         try:
-            # 为避免分辨率过大导致速度太慢，可在此对 frame 进行适当缩放
-            # 例如： frame = cv2.resize(frame, (640, 480))
+            # To avoid slowness due to high resolution, you can resize the frame here
+            # For example: frame = cv2.resize(frame, (640, 480))
 
             results = DeepFace.analyze(
                 img_path=frame,
-                actions=['emotion'],  # 只检测情绪
-                detector_backend='opencv'  # 使用opencv作为人脸检测后端
+                actions=['emotion'],  # Only detect emotion
+                detector_backend='opencv'  # Use opencv as face detection backend
             )
 
-            # 可能同时检测到多张人脸，这里只演示第一张
+            # Multiple faces may be detected simultaneously, here we only demonstrate the first one
             if isinstance(results, list):
-                # DeepFace.analyze 有时返回列表，每个元素代表一张人脸
+                # DeepFace.analyze sometimes returns a list, with each element representing a face
                 for res in results:
                     draw_face_box(frame, res)
             else:
-                # 只检测到一张人脸，results就是一个字典
+                # Only one face detected, results is a dictionary
                 draw_face_box(frame, results)
 
         except Exception as e:
-            # 未检测到人脸等其他错误时，可以选择跳过或者打印错误
+            # When no face is detected or other errors occur, you can choose to skip or print the error
             pass
 
         cv2.imshow("Real-time Face Emotion", frame)
 
-        # 按下q键退出
+        # Press q to exit
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
@@ -56,51 +56,51 @@ def main():
 
 # def draw_face_box(frame, analysis):
 #     """
-#     根据 DeepFace 返回的分析数据，在图像上绘制人脸框和情绪信息
+#     Draw face box and emotion information on the image based on the analysis data returned by DeepFace
 #     """
-#     region = analysis['region']  # 字典，包含(x,y,w,h)
-#     emotion = analysis['dominant_emotion']  # 字符串，如 'happy', 'sad', 'neutral' 等
+#     region = analysis['region']  # Dictionary containing (x,y,w,h)
+#     emotion = analysis['dominant_emotion']  # String, such as 'happy', 'sad', 'neutral', etc.
 #
 #     x, y, w, h = region['x'], region['y'], region['w'], region['h']
-#     # 绘制矩形框
+#     # Draw rectangle
 #     cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 0, 255), 2)
 #
-#     # 在方框上方写上检测到的情绪
+#     # Write detected emotions above the frame
 #     cv2.putText(
 #         frame,
 #         emotion,
-#         (x, y - 10),  # 字会显示在方框的上方
+#         (x, y - 10),  # Text will be displayed above the frame
 #         cv2.FONT_HERSHEY_SIMPLEX,
-#         0.9,  # 字体大小
-#         (0, 255, 0),  # 字体颜色
-#         2  # 线宽
+#         0.9,  # Font size
+#         (0, 255, 0),  # Font color
+#         2  # Line width
 #     )
 
 def draw_face_box(frame, analysis):
     """
-    根据 DeepFace 返回的分析数据，在图像上绘制人脸框和情绪信息
+    Draw face box and emotion information on the image based on the analysis data returned by DeepFace
     """
-    region = analysis['region']  # 人脸区域信息
-    emotions = analysis['emotion']  # 各情绪置信度
+    region = analysis['region']  # Face region information
+    emotions = analysis['emotion']  # Emotion confidence scores
 
     x, y, w, h = region['x'], region['y'], region['w'], region['h']
 
-    # 绘制矩形框
+    # Draw rectangle
     cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 0, 255), 2)
 
-    # 将情绪置信度转换成文本，只保留前三种最可能的情绪
+    # Convert emotion confidence to text, keep only the top three most likely emotions
     top_emotions = sorted(emotions.items(), key=lambda item: item[1], reverse=True)[:3]
     emotion_text = ", ".join([f"{e}: {round(p, 1)}%" for e, p in top_emotions])
 
-    # 在方框上方写上检测到的情绪
+    # Write detected emotions above the frame
     cv2.putText(
         frame,
         emotion_text,
-        (x, y - 10),  # 文字位置（框的上方）
+        (x, y - 10),  # Text position (above the frame)
         cv2.FONT_HERSHEY_SIMPLEX,
-        0.5,  # 字体大小
-        (0, 255, 0),  # 字体颜色（绿色）
-        1  # 线宽
+        0.5,  # Font size
+        (0, 255, 0),  # Font color (green)
+        1  # Line width
     )
 
 if __name__ == "__main__":

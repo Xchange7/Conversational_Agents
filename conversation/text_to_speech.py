@@ -1,62 +1,55 @@
 import os
+import tempfile
 from gtts import gTTS
 from langdetect import detect
 import platform
+from io import BytesIO
+from logger import Logger
+import uuid
 
-def text_to_speech(text, output_dir, slow=False):
+# Create logger instance
+logger = Logger()
+
+def text_to_speech(text, output_dir=None, slow=False):
     """
-    将文本转换为语音，自动检测文本语言，并将生成的语音文件保存到指定目录下。
-    文件会自动命名为 session_1.mp3, session_2.mp3, ...（避免重名）。
+    Convert text to speech, automatically detect the text language, and return the audio file path for playback in Gradio UI.
+    
+    Parameters:
+        text (str): The text content to be converted.
+        output_dir (str, optional): Directory path to save the audio file (if provided).
+        slow (bool): Whether to play at a slower speed, default is False (normal speed).
 
-    参数:
-        text (str): 待转换的文本内容。
-        output_dir (str): 保存语音文件的目录路径。如果目录不存在，函数会自动创建。
-        slow (bool): 是否以较慢的语速播放，默认为 False（正常语速）。
-
-    返回:
-        str: 成功保存后的完整文件路径。
+    Returns:
+        str: The path of the generated audio file, which can be used directly with Gradio audio components.
     """
-    # 如果输出目录不存在，则创建
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-
-    # 自动检测文本语言
+    # Automatically detect text language
     try:
         language = detect(text)
     except Exception as e:
-        print("语言检测失败，默认使用英文。错误信息:", e)
+        logger.log_error(f"Language detection failed, defaulting to English. Error: {e}")
         language = "en"
 
-    # 自动生成不重复的文件名：session_1.mp3, session_2.mp3, ...
-    base_name = "session_"
-    i = 1
-    while True:
-        file_name = f"{base_name}{i}.mp3"
-        full_path = os.path.join(output_dir, file_name)
-        if not os.path.exists(full_path):
-            break
-        i += 1
-
-    # 创建 gTTS 对象并保存生成的语音
+    # Create gTTS object
     tts = gTTS(text=text, lang=language, slow=slow)
-    tts.save(full_path)
-    print(f"语音文件已保存至: {full_path}")
+    
+    # Create a dedicated folder in the system's temp directory
+    temp_dir = tempfile.gettempdir()
+    audio_output_dir = os.path.join(temp_dir, "agent_audio_output")
+    os.makedirs(audio_output_dir, exist_ok=True)
+    
+    # Create temporary file in the specified directory
+    temp_file_path = os.path.join(audio_output_dir, f"{uuid.uuid4()}.mp3")
+    
+    # Save to temporary file
+    tts.save(temp_file_path)
+    
+    logger.log(f"Audio file generated, saved at: {temp_file_path}")
+    
+    # Return file path, Gradio can use it directly
+    return temp_file_path
 
-    # **自动播放音频**
-    system_name = platform.system()
-    if system_name == "Windows":
-        os.system(f'start {full_path}')  # Windows 默认播放器
-    elif system_name == "Darwin":  # macOS
-        os.system(f"afplay '{full_path}'")
-    else:  # Linux
-        os.system(f"mpg321 '{full_path}'")  # 需要安装 `mpg321`
-
-    return full_path
-
-
-# 示例用法
+# Example usage
 if __name__ == "__main__":
-    sample_text = "你好，这是一个使用 gTTS 将文本转换为语音的示例。"
-    # 指定保存音频文件的目录
-    output_directory = "output"
-    text_to_speech(sample_text, output_directory,True)
+    sample_text = "Hello, this is an example of converting text to speech using gTTS."
+    audio_path = text_to_speech(sample_text)
+    logger.log(f"Successfully generated audio file: {audio_path}")

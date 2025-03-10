@@ -1,24 +1,30 @@
-# 使用 Python 官方轻量版基础镜像（可根据需要选择版本）
+# Use Python official lightweight base image (version can be selected as needed)
 FROM python:3.10-slim
 
-# 设置工作目录
+# Set working directory
 WORKDIR /app
 
-# 复制依赖文件到容器中
+# Install system dependencies, including FFmpeg
+RUN apt-get update && apt-get install -y \
+    ffmpeg \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy dependency file to container
 COPY requirements.txt .
 
-# 升级 pip 并安装依赖
-RUN pip install --upgrade pip && pip install -r requirements.txt
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
 
-# 将项目代码复制到工作目录
+# Copy project code to working directory
 COPY . .
 
-# 如果应用需要监听端口（例如使用 Flask/FastAPI），可以开放端口
+# If the application needs to listen to ports (e.g., using Flask/FastAPI), expose ports
 # EXPOSE 8000
+EXPOSE 7860
 
 ENV OPENAI_API_KEY=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
 ENV TOKENIZERS_PARALLELISM=false
 ENV MONGO_URI=mongodb://admin:password@mongo:27017/
-
 
 CMD ["python", "app.py"]

@@ -13,3 +13,6 @@ run_deepface.ipynb
 .env
 
 .DS_Store
+
+logs/
+.gradio/

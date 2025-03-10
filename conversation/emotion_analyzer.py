@@ -14,39 +14,40 @@ class EmotionAnalyzer:
 
     def analyze_emotion(self, text: str) -> str:
         """
-        使用预训练模型对文本情感进行分类/分析。
-        这里是一个简单的示例，将文本情感分为1-5星评价，可自行映射到更细的情绪标签。
+        Use a pretrained model to classify/analyze text sentiment.
+        This is a simple example that classifies text sentiment into 1-5 star ratings,
+        which can be mapped to more detailed emotion labels if needed.
         """
         inputs = self.tokenizer.encode_plus(text, return_tensors="pt", truncation=True)
         outputs = self.model(**inputs)
         scores = outputs.logits.detach().numpy()[0]
-        # 找到得分最高的情感标签(1到5)
-        predicted_label = scores.argmax() + 1  # argmax得到0-4
-        return f"{predicted_label}-star sentiment"  # 你可以改成更细致的分类结果
+        # Find the highest scoring emotion label (1 to 5)
+        predicted_label = scores.argmax() + 1  # argmax returns 0-4
+        return f"{predicted_label}-star sentiment"  # You can change this to a more detailed classification
 
 def extract_audio_features(audio_path: str):
     """
-    使用 pyAudioAnalysis 提取音频特征的示例
+    Example of using pyAudioAnalysis to extract audio features
     """
     if not os.path.exists(audio_path):
         raise FileNotFoundError(f"{audio_path} not found.")
 
-    # 读取音频并提取特征
+    # Read audio and extract features
     [Fs, x] = audioFeatureExtraction.read_audio_file(audio_path)
-    # 提取短期特征
+    # Extract short-term features
     features, feature_names = ShortTermFeatures.feature_extraction(x, Fs, 0.05 * Fs, 0.025 * Fs)
-    # 这里简单返回均值作为示例
+    # Return the mean as an example
     features_mean = np.mean(features, axis=1)
     return features_mean, feature_names
 
 
 def predict_audio_emotion(features_mean):
     """
-    仅做示例：根据提取的特征进行情感预测
-    实际使用时需要训练或使用预训练模型对特征进行分类
+    Example only: Predict emotion based on extracted features
+    In actual use, you would need to train or use a pretrained model to classify the features
     """
-    # 这里只是示例，返回一个假设结果
-    # 你可以把 features_mean 输入到自己的分类模型中，得到实际情绪标签
+    # This is just an example, returning a hypothetical result
+    # You can input features_mean into your own classification model to get actual emotion labels
     # e.g. emotion_classifier.predict(features_mean.reshape(1, -1))
-    # 这里先简单写死
+    # Here we simply return a hardcoded value
     return "happy"
