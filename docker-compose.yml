@@ -5,6 +5,7 @@ services:
     build:
       context: ./conversation
       dockerfile: Dockerfile
+    image: ca/conversation:latest
     container_name: conversation_service
     ports:
       - "7860:7860"
