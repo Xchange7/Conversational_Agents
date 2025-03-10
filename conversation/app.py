@@ -183,6 +183,7 @@ def main():
     logger = Logger()
     
     load_dotenv()
+    use_docker_for_conversation = os.getenv("USE_DOCKER_FOR_CONVERSATION", "true")
     openai_api_key = os.getenv("OPENAI_API_KEY")
     if not openai_api_key:
         logger.log_error("Please set OPENAI_API_KEY in environment variables or .env file")
@@ -197,7 +198,13 @@ def main():
 
     # Create Gradio Interface with fixed day theme
     ui = create_user_interface(db_instance, analyzer, chain, logger)
-    ui.launch(share=True)
+
+    if use_docker_for_conversation.lower() == "true":
+        logger.log("Conversation service running in Docker mode")
+        ui.launch(server_name="0.0.0.0", share=False)
+    else:
+        logger.log("Conversation service running in local mode")
+        ui.launch(share=False)
 
 
 if __name__ == "__main__":
