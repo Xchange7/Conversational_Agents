@@ -7,10 +7,11 @@ services:
       dockerfile: Dockerfile
     container_name: conversation_service
     ports:
-      - "5001:5000"  # 假设内部使用5000端口，对外映射到宿主机5001
+      - "7860:7860"
     depends_on:
       - mongo
-
+    environment:
+      MONGO_URI: mongodb://admin:password@mongo:27017/
 
 #  deepface:
 #    build:

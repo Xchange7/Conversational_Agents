@@ -43,17 +43,17 @@ We could choose Weaviate or Mongo DB as our database
 docker exec -it mongo mongosh -u admin -p password --authenticationDatabase admin
 ```
 
-**查看数据库中的信息**
+**View information in the database**
 ```bash
-use conversational_agent
+use conversations
 
 db.users.find().pretty()
 ```
 
 
-### Docker使用技巧
+### Docker usage tips
 
-使用Docker进入一个container
+Using Docker to enter a container
 ```bash
 docker exec -it <container_id_or_name> /bin/bash
 ```

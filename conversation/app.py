@@ -1,163 +1,203 @@
-# app.py
 import os
 import sys
 from dotenv import load_dotenv
+import gradio as gr
 
 from speech_to_text import transcribe_audio
 from emotion_analyzer import EmotionAnalyzer
 from mental_health_chain import create_mental_health_chain_with_prompt
-
-from pymongo import MongoClient
-from datetime import datetime
 from text_to_speech import text_to_speech
+from datetime import datetime
+from pathlib import Path
+
+# Import the database functions from db.py
+from db import DB, User, Conversation
+# Import the logger class from logger
+from logger import Logger
 
 
-class User:
-    def __init__(self, user_name,user_age, user_problem):
-        self.user_id = None
-        self.user_name = user_name
-        self.user_age = user_age
-        self.user_problem = user_problem
+def create_user_interface(db_instance, analyzer, chain, logger):
+    current_user = None
+    
+    # Function to check login status
+    def is_logged_in():
+        return current_user is not None
 
+    def respond(message, audio_input, history=None):
+        nonlocal current_user
+        if current_user is None:
+            return "Please initialize user first.", None
 
-class Conversation:
-    def __init__(self, user_input, AI_output, timestamp):
-        self.user_input = user_input
-        self.AI_output = AI_output
-        self.timestamp = timestamp
-
-
-def main():
-    load_dotenv()
-    openai_api_key = os.getenv("OPENAI_API_KEY")
-    if not openai_api_key:
-        print("请先在环境变量或 .env 文件中配置 OPENAI_API_KEY")
-        sys.exit(1)
-
-    # 从环境变量获取 MongoDB 连接 URI
-    mongo_uri = os.getenv("MONGO_URI", "mongodb://admin:password@mongo:27017/")
-
-    # 连接 MongoDB
-    # client = MongoClient(mongo_uri)
-    client = MongoClient("mongodb://admin:password@localhost:27017/admin")
-    db = client["conversational_agent"]
-    collection = db["users"]
-
-    # 创建情绪分析器 和 对话链
-    analyzer = EmotionAnalyzer()
-    chain = create_mental_health_chain_with_prompt(openai_api_key)
-
-    # 人脸识别 和 创建新用户
-    User = face_recognize(collection)
-
-    print("Hello " + User.user_name + " How is everything going?")
-    print("请输入音频文件路径(或直接输入文本)，输入 'exit' 退出。")
-
-    while True:
-        user_input = input(">>> ")
-        if user_input.lower() == "exit":
-            print("See you! Hope you enjoy!")
-            break
-
-        # 判断是文本还是音频文件路径
-        if user_input.endswith(".wav") or user_input.endswith(".mp3"):
-            # 做语音转文本
+        if audio_input:
             try:
-                text_content = transcribe_audio(user_input, model_name="base")
-                print(f"[语音识别结果]: {text_content}")
+                message = transcribe_audio(audio_input, model_name="base")
+                logger.log(f"[Transcription Result]: {message}")
             except Exception as e:
-                print(f"音频转写失败: {e}")
-                continue
-        else:
-            # Text
-            text_content = user_input
+                logger.log_error(f"Audio transcription failed: {e}")
+                return f"Audio transcription failed: {e}", None
 
         # Emotion Analysis
-        emotion_label = analyzer.analyze_emotion(text_content)
-        print(f"[情绪分析]: {emotion_label}")
+        emotion_label = analyzer.analyze_emotion(message)
+        logger.log(f"[emotion_label]: {emotion_label}")
 
         # Use Conversational Agent to Generate Response
         try:
-            combined_input = f"emotion: {emotion_label}\n text: {text_content}"
+            combined_input = f"emotion: {emotion_label}\n text: {message}"
             response = chain.invoke({"input": combined_input})
 
-            print(f"AI回复: {response['text']}")
+            logger.log(f"AI response: {response['text']}")
 
             now = datetime.now()
-            timestamp = now.strftime("%Y-%m-%d %H:%M:%S")  # 格式化为 "YYYY-MM-DD HH:MM:SS"
+            timestamp = now.strftime("%Y-%m-%d %H:%M:%S")  # format as "YYYY-MM-DD HH:MM:SS"
             one_conversation = Conversation(combined_input, response['text'], timestamp)
             # Update Conversation
-            update_conversation(collection, User, one_conversation)
+            db_instance.update_conversation(current_user, one_conversation)
 
-            text_to_speech( response['text'], "/Users/xchange/PycharmProjects/Conversational_Agents/conversation/output")
+            try:
+                # Generate audio directly for Gradio UI
+                audio_data = text_to_speech(response['text'])
+                # audio_data is now a tuple (audio_bytes, sample_rate) ready for Gradio
+            except Exception as e:
+                logger.log_error(f"Error during text-to-speech conversion: {e}")
+                return f"Error: Text-to-speech failed: {e}", None
+
+            return response['text'], audio_data
         except Exception as e:
-            print(f"生成回复失败: {e}")
+            logger.log_error(f"Failed to generate response: {e}")
+            return f"Error: {e}", None
 
-
-
-
-def init_user(collection, new_user):
-    # 构造用户文档，其中 conversations 字段初始化为空列表
-    user = {
-        "name": new_user.user_name,
-        "age": new_user.user_age,
-        "problem": new_user.user_problem,
-        "conversations": []
-    }
-    try:
-        insert_result = collection.insert_one(user)
-        print("Your User ID is : " + str(insert_result.inserted_id))
-        new_user.user_id = insert_result.inserted_id
-        return True
-
-    except Exception as e:
-        print(e)
-        return False
-
-
-
-def face_recognize(collection):
-
-
-    # 加入人脸识别判断逻辑
-    User_is_created = False
-    if User_is_created:
-        return User("Peng Xu",22,"Tortured by TU Delft")# User_id
-    else:
-        print("Nice to meet you! What is your name？")
-        user_name_input = input(">>> ")
-        print("Nice to meet you! " + user_name_input)
-        print("Now I have to gather some import information from you, what is your age?")
-        user_age_input = input(">>> ")
-        print("Could you please tell me your problem?")
-        user_problem_input = input(">>> ")
+    def create_new_user(user_name_input, user_age_input, user_problem_input):
+        nonlocal current_user
+        # Check if the user already exists
+        existing_user = db_instance.get_user_by_name(user_name_input)
+        if existing_user:
+            return f"User {user_name_input} already exists! Please log in instead.", gr.update(visible=False), gr.update(visible=True)
 
         new_user = User(user_name_input, user_age_input, user_problem_input)
+        db_instance.init_user(new_user)
+        if new_user.user_id:
+            current_user = new_user
+            return f"User {user_name_input} created successfully!", gr.update(visible=True), gr.update(visible=False)
+        else:
+            return f"Failed to create user {user_name_input}.", gr.update(visible=False), gr.update(visible=True)
 
-        init_user(collection, new_user)
-        return new_user
+    def login_user(user_name_input):
+        nonlocal current_user
+        # Check if the user exists
+        existing_user = db_instance.get_user_by_name(user_name_input)
+        if not existing_user:
+            return "User not found. Please create a new user or check the username.", gr.update(visible=False), gr.update(visible=True)
 
-def update_memory():
-    #调用数据库存储
+        current_user = existing_user
+        return f"User {user_name_input} logged in successfully!", gr.update(visible=True), gr.update(visible=False)
+    
+    def logout_user():
+        nonlocal current_user
+        current_user = None
+        return "You have been logged out.", gr.update(visible=False), gr.update(visible=True), "", "", 0, ""
 
-    return True
+    def get_user_info():
+        if current_user:
+            return current_user.user_name, current_user.user_age, current_user.user_problem
+        return "", 0, ""
 
-def update_conversation(collection, user, user_conversation):
-    conversation = {"timestamp": user_conversation.timestamp,
-                    "user_input": user_conversation.user_input,
-                    "AI_output": user_conversation.AI_output}
-    try:
-        result = collection.update_one(
-            {"_id": user.user_id},
-            {"$push": {"conversations": conversation}},
-        )
-        if result.modified_count ==1:
-            print("Result of User is Updated")
+    with gr.Blocks(theme=gr.themes.Soft()) as demo:
+        gr.Markdown("# Psychological Doctor Agent")
+        
+        # Create tabs but hide Chat initially and select User Info by default
+        with gr.Tabs(selected=1) as tabs:  # Set index 1 (User Info tab) as the default selected tab
+            with gr.Tab("Chat", visible=False) as chat_tab:
+                with gr.Row():
+                    audio_input = gr.Audio(sources=["microphone"], type="filepath", label="Speak to the agent")
+                with gr.Row():
+                    text_input = gr.Textbox(label="Or enter text here")
+                state = gr.State([])
+                output_text = gr.Textbox(label="Response")
+                output_audio = gr.Audio(label="Agent's Speech", autoplay=True)
 
-    except Exception as e:
-        print(e)
+                text_input.submit(respond, [text_input, audio_input], [output_text, output_audio])
+                audio_input.change(respond, [text_input, audio_input], [output_text, output_audio])  # Changed back to .change()
 
-    return True
+            with gr.Tab("User Info") as user_info_tab:
+                # Login/Register UI (visible when not logged in)
+                with gr.Group(visible=True) as login_group:
+                    with gr.Row():
+                        user_mode = gr.Radio(["Login", "Create User"], label="Select Mode", value="Login")
+                    name_input = gr.Textbox(label="Name")
+                    age_input = gr.Number(label="Age", visible=False)
+                    problem_input = gr.Textbox(label="Problem", visible=False)
+                    submit_button = gr.Button("Submit")
+                    user_output = gr.Textbox(label="User Status")
+
+                # User Profile UI (visible when logged in)
+                with gr.Group(visible=False) as profile_group:
+                    gr.Markdown("## Your Profile")
+                    display_name = gr.Textbox(label="Name", interactive=False)
+                    display_age = gr.Number(label="Age", interactive=False)
+                    display_problem = gr.Textbox(label="Problem", interactive=False)
+                    logout_button = gr.Button("Logout")
+
+                def toggle_visibility(mode):
+                    is_create = mode == "Create User"
+                    return {
+                        age_input: gr.update(visible=is_create),
+                        problem_input: gr.update(visible=is_create),
+                    }
+
+                user_mode.change(
+                    toggle_visibility,
+                    inputs=[user_mode],
+                    outputs=[age_input, problem_input],
+                )
+
+                def submit_user_info(mode, name, age, problem):
+                    if mode == "Create User":
+                        message, chat_visible, login_visible = create_new_user(name, age, problem)
+                        # Update profile display if login successful
+                        if current_user:
+                            return message, chat_visible, login_visible, current_user.user_name, current_user.user_age, current_user.user_problem
+                        return message, chat_visible, login_visible, "", 0, ""
+                    else:
+                        message, chat_visible, login_visible = login_user(name)
+                        # Update profile display if login successful
+                        if current_user:
+                            return message, chat_visible, login_visible, current_user.user_name, current_user.user_age, current_user.user_problem
+                        return message, chat_visible, login_visible, "", 0, ""
+
+                submit_button.click(
+                    submit_user_info,
+                    inputs=[user_mode, name_input, age_input, problem_input],
+                    outputs=[user_output, chat_tab, login_group, display_name, display_age, display_problem],
+                )
+
+                logout_button.click(
+                    logout_user,
+                    outputs=[user_output, chat_tab, login_group, display_name, display_age, display_problem],
+                )
+
+    return demo
+
+
+def main():
+    # Initialize logger
+    logger = Logger()
+    
+    load_dotenv()
+    openai_api_key = os.getenv("OPENAI_API_KEY")
+    if not openai_api_key:
+        logger.log_error("Please set OPENAI_API_KEY in environment variables or .env file")
+        sys.exit(1)
+
+    # connect to MongoDB
+    db_instance = DB()
+
+    # Emotion Analyzer and Conversation Chain
+    analyzer = EmotionAnalyzer()
+    chain = create_mental_health_chain_with_prompt(openai_api_key)
+
+    # Create Gradio Interface with fixed day theme
+    ui = create_user_interface(db_instance, analyzer, chain, logger)
+    ui.launch(share=True)
 
 
 if __name__ == "__main__":
