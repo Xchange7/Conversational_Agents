@@ -37,12 +37,13 @@ def create_user_interface(db_instance, analyzer, chain, logger):
                 return f"Audio transcription failed: {e}", None
 
         # Emotion Analysis
-        emotion_label = analyzer.analyze_emotion(message)
-        logger.log(f"[emotion_label]: {emotion_label}")
+        text_emotion_label = analyzer.analyze_text_emotion(message)
+        facial_emotion_label = analyzer.analyze_face_emotion()
+        logger.log(f"[emotion_label]: {text_emotion_label}, [facial_emotions]: {facial_emotion_label}")
 
         # Use Conversational Agent to Generate Response
         try:
-            combined_input = f"emotion: {emotion_label}\n text: {message}"
+            combined_input = f"text emotion: {text_emotion_label}\n facial emotion:{facial_emotion_label}\n text: {message}"
             response = chain.invoke({"input": combined_input})
 
             logger.log(f"AI response: {response['text']}")
@@ -193,7 +194,7 @@ def main():
     db_instance = DB()
 
     # Emotion Analyzer and Conversation Chain
-    analyzer = EmotionAnalyzer()
+    analyzer = EmotionAnalyzer(logger)
     chain = create_mental_health_chain_with_prompt(openai_api_key)
 
     # Create Gradio Interface with fixed day theme

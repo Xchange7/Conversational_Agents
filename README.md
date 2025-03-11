@@ -64,6 +64,16 @@ For MongoDB in Docker and conversation service running locally:
 
 3. Access the conversation service: [http://localhost:7860](http://localhost:7860)
 
+## Facial Emotion Detection
+
+Because it is really hard for Docker Container to Use Camera, we can only start this service by 
+
+```bash
+python deepface/app.py
+```
+
+and we use docker extra_hosts to mapping localhost to docker internal hosts.
+
 ## Administration
 
 ### MongoDB Management

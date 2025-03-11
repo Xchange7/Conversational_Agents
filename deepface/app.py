@@ -42,6 +42,7 @@ def capture_emotion():
 @app.route('/emotion', methods=['GET'])
 def get_emotion():
     """return emotion detected"""
+    print("emotion detected:", current_emotion)
     return jsonify({"emotion": current_emotion})
 
 if __name__ == '__main__':
