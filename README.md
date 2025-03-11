@@ -28,8 +28,7 @@ This repository contains the group project for the TU Delft DSAIT4065 (previousl
 
 ### 2.1 Environment Variables Setup
 
-1. Create a `.env` file in the root directory based on the provided `.env.default` template.
-2. Add your personal OpenAI API key to the `OPENAI_API_KEY` value in `conversation/Dockerfile`.
+Create a `.env` file in the `./conversation` directory based on the provided `./conversation/.env.default` template.
 
 ### 2.2 Facial Emotion Detection Setup
 

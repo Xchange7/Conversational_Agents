@@ -23,33 +23,30 @@ def create_user_interface(db_instance, analyzer, chain, logger):
     def is_logged_in():
         return current_user is not None
 
-    def respond(message, audio_input, history=None):
+    def respond_to_text(message, history=None):
+        logger.log("-------------------Start RESPONDING TO TEXT-------------------")
         nonlocal current_user
         if current_user is None:
-            return "Please initialize user first.", None
+            return "Please initialize user first.", None, ""
 
-        if audio_input:
-            try:
-                message = transcribe_audio(audio_input, model_name="base")
-                logger.log(f"[Transcription Result]: {message}")
-            except Exception as e:
-                logger.log_error(f"Audio transcription failed: {e}")
-                return f"Audio transcription failed: {e}", None
+        logger.log(f"[Text Input]: {message}")
 
-        # Emotion Analysis
         text_emotion_label = analyzer.analyze_text_emotion(message)
         facial_emotion_label = analyzer.analyze_face_emotion()
-        logger.log(f"[emotion_label]: {text_emotion_label}, [facial_emotions]: {facial_emotion_label}")
+        
+        logger.log(f"[Text Emotion]: {text_emotion_label}")
+        logger.log(f"[Facial Emotion]: {facial_emotion_label}")
 
         # Use Conversational Agent to Generate Response
         try:
-            combined_input = f"text emotion: {text_emotion_label}\n facial emotion:{facial_emotion_label}\n text: {message}"
+            combined_input = f"text emotion: {text_emotion_label}\nfacial emotion:{facial_emotion_label}\ntext: {message}"
+            logger.log(f"[Combined Input]: {combined_input}")
             response = chain.invoke({"input": combined_input})
 
-            logger.log(f"AI response: {response['text']}")
+            logger.log(f"[AI Response to Text]: {response['text']}")
 
             now = datetime.now()
-            timestamp = now.strftime("%Y-%m-%d %H:%M:%S")  # format as "YYYY-MM-DD HH:MM:SS"
+            timestamp = now.strftime("%Y-%m-%d %H:%M:%S")
             one_conversation = Conversation(combined_input, response['text'], timestamp)
             # Update Conversation
             db_instance.update_conversation(current_user, one_conversation)
@@ -57,15 +54,65 @@ def create_user_interface(db_instance, analyzer, chain, logger):
             try:
                 # Generate audio directly for Gradio UI
                 audio_data = text_to_speech(response['text'])
-                # audio_data is now a tuple (audio_bytes, sample_rate) ready for Gradio
             except Exception as e:
                 logger.log_error(f"Error during text-to-speech conversion: {e}")
-                return f"Error: Text-to-speech failed: {e}", None
+                return f"Error: Text-to-speech failed: {e}", None, ""
 
-            return response['text'], audio_data
+            # Return response and empty value for text_input to clear it
+            return response['text'], audio_data, ""
         except Exception as e:
-            logger.log_error(f"Failed to generate response: {e}")
-            return f"Error: {e}", None
+            logger.log_error(f"Failed to generate response to text: {e}")
+            return f"Error: {e}", None, ""
+
+    def respond_to_audio(audio_input, history=None):
+        logger.log("-------------------Start RESPONDING TO AUDIO-------------------")
+        nonlocal current_user
+        if current_user is None:
+            return "Please initialize user first.", None, None
+
+        if not audio_input:
+            return "No audio detected. Please record your message.", None, None
+
+        try:
+            # Transcribe audio to text
+            transcribed_text = transcribe_audio(audio_input, model_name="base")
+            logger.log(f"[Audio Transcription]: {transcribed_text}")
+            
+            # Emotion Analysis for audio and transcribed text
+            text_emotion_label = analyzer.analyze_text_emotion(transcribed_text)
+            # Speech Emotion Analysis
+            speech_emotion_label = analyzer.analyze_speech_emotion(audio_input)
+            # Facial Emotion Analysis
+            facial_emotion_label = analyzer.analyze_face_emotion()
+            
+            logger.log(f"[Text Emotion]: {text_emotion_label}")
+            logger.log(f"[Speech Emotion]: {speech_emotion_label}")
+            logger.log(f"[Facial Emotion]: {facial_emotion_label}")
+
+            # Use Conversational Agent to Generate Response
+            combined_input = f"text emotion: {text_emotion_label}\nfacial emotion:{facial_emotion_label}\nspeech emotion: {speech_emotion_label}\n text: {transcribed_text}"
+            response = chain.invoke({"input": combined_input})
+
+            logger.log(f"[AI Response to Audio]: {response['text']}")
+
+            now = datetime.now()
+            timestamp = now.strftime("%Y-%m-%d %H:%M:%S")
+            one_conversation = Conversation(combined_input, response['text'], timestamp)
+            # Update Conversation
+            db_instance.update_conversation(current_user, one_conversation)
+
+            try:
+                # Generate audio directly for Gradio UI
+                audio_data = text_to_speech(response['text'])
+            except Exception as e:
+                logger.log_error(f"Error during text-to-speech conversion: {e}")
+                return f"Error: Text-to-speech failed: {e}", None, None
+
+            # Return response and clear audio input
+            return response['text'], audio_data, None
+        except Exception as e:
+            logger.log_error(f"Failed to process audio: {e}")
+            return f"Error processing audio: {e}", None, None
 
     def create_new_user(user_name_input, user_age_input, user_problem_input):
         nonlocal current_user
@@ -106,20 +153,38 @@ def create_user_interface(db_instance, analyzer, chain, logger):
         gr.Markdown("# Psychological Doctor Agent")
         
         # Create tabs but hide Chat initially and select User Info by default
-        with gr.Tabs(selected=1) as tabs:  # Set index 1 (User Info tab) as the default selected tab
-            with gr.Tab("Chat", visible=False) as chat_tab:
+        with gr.Tabs(selected="user_info_tab") as tabs:
+            with gr.Tab("Chat", visible=False, id="chat_tab") as chat_tab:
                 with gr.Row():
-                    audio_input = gr.Audio(sources=["microphone"], type="filepath", label="Speak to the agent")
+                    audio_input = gr.Audio(sources=["microphone"], type="filepath", label="Speak to the agent", scale=4)
+                    audio_submit = gr.Button("Submit Audio", scale=1)
                 with gr.Row():
-                    text_input = gr.Textbox(label="Or enter text here")
+                    text_input = gr.Textbox(label="Or enter text here", scale=4)
+                    text_submit = gr.Button("Submit Text", scale=1)
                 state = gr.State([])
                 output_text = gr.Textbox(label="Response")
                 output_audio = gr.Audio(label="Agent's Speech", autoplay=True)
 
-                text_input.submit(respond, [text_input, audio_input], [output_text, output_audio])
-                audio_input.change(respond, [text_input, audio_input], [output_text, output_audio])  # Changed back to .change()
+                # Connect text input to respond_to_text function
+                text_submit.click(
+                    respond_to_text, 
+                    inputs=[text_input], 
+                    outputs=[output_text, output_audio, text_input]
+                )
+                text_input.submit(
+                    respond_to_text, 
+                    inputs=[text_input], 
+                    outputs=[output_text, output_audio, text_input]
+                )
+                
+                # Connect audio input to respond_to_audio function
+                audio_submit.click(
+                    respond_to_audio, 
+                    inputs=[audio_input], 
+                    outputs=[output_text, output_audio, audio_input]
+                )
 
-            with gr.Tab("User Info") as user_info_tab:
+            with gr.Tab("User Info", id="user_info_tab") as user_info_tab:
                 # Login/Register UI (visible when not logged in)
                 with gr.Group(visible=True) as login_group:
                     with gr.Row():
@@ -194,7 +259,7 @@ def main():
     db_instance = DB()
 
     # Emotion Analyzer and Conversation Chain
-    analyzer = EmotionAnalyzer(logger)
+    analyzer = EmotionAnalyzer()
     chain = create_mental_health_chain_with_prompt(openai_api_key)
 
     # Create Gradio Interface with fixed day theme
