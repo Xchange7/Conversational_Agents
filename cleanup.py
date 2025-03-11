@@ -11,6 +11,7 @@ Directories to be cleaned up recursively:
 Specific directories to be cleaned up:
 - %USERPROFILE%/AppData/Local/Temp/gradio/
 - %USERPROFILE%/AppData/Local/Temp/agent_audio_output/
+- %USERPROFILE%/.deepface/
 """
 import os
 import shutil
@@ -61,7 +62,8 @@ if __name__ == "__main__":
     # Specific directories to be cleaned up
     specific_directories = [
         os.path.join(tempfile.gettempdir(), "gradio"),
-        os.path.join(tempfile.gettempdir(), "agent_audio_output")
+        os.path.join(tempfile.gettempdir(), "agent_audio_output"),
+        os.path.join(os.getenv("USERPROFILE"), ".deepface")
     ]
 
     for directory in specific_directories:

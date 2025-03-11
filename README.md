@@ -1,143 +1,161 @@
 # Conversational Agents
 
-A psychological doctor agent system using conversational AI.
+This repository contains the group project for the TU Delft DSAIT4065 (previously CS4270) Conversational Agents course. The project implements a psychological doctor agent system powered by conversational AI technologies.
 
-## Prerequisites
+## Table of Contents
 
-- Docker and Docker Compose
-- Python 3.10+ (for local deployment)
-- OpenAI API key
+- [Conversational Agents](#conversational-agents)
+  - [Table of Contents](#table-of-contents)
+  - [1. Prerequisites](#1-prerequisites)
+  - [2. Setup Instructions](#2-setup-instructions)
+    - [2.1 Environment Variables Setup](#21-environment-variables-setup)
+    - [2.2 Facial Emotion Detection Setup](#22-facial-emotion-detection-setup)
+      - [2.2.1 Option 1: Using venv](#221-option-1-using-venv)
+      - [2.2.2 Option 2: Using Conda](#222-option-2-using-conda)
+    - [2.3 Docker Deployment](#23-docker-deployment)
+  - [3. Administration](#3-administration)
+    - [3.1 MongoDB Management](#31-mongodb-management)
+  - [4. Troubleshooting](#4-troubleshooting)
+    - [4.1 Docker Commands](#41-docker-commands)
 
-## Setup Instructions
+## 1. Prerequisites
 
-### Environment Variables Setup
+- **Docker and Docker Compose**
+- **Python 3.10 or higher** (for local deployment)
+- **OpenAI API key** (for conversation capabilities)
 
-1. Create a `.env` file based on the `.env.default` template
-2. Update the `OPENAI_API_KEY` value in `conversation/Dockerfile` with your personal API key
+## 2. Setup Instructions
 
-## Deployment Options
+### 2.1 Environment Variables Setup
 
-### Option 1: Full Docker Deployment (Recommended)
+Create a `.env` file in the `./conversation` directory based on the provided `./conversation/.env.default` template.
 
-1. Start all services with Docker Compose:
+### 2.2 Facial Emotion Detection Setup
+
+> **Note:** Since camera access is challenging within Docker containers, this service runs ***locally*** with Docker mapping localhost to internal container hosts through `extra_hosts`.
+
+To set up the facial emotion detection component, follow one of the options below:
+
+#### 2.2.1 Option 1: Using venv
+
+1. Create a Python virtual environment:
+
+   ```bash
+   python -m venv venv
+   ```
+
+2. Activate the virtual environment:
+
+   - **For Windows:**
+
+     ```bash
+     venv\Scripts\activate
+     ```
+
+   - **For macOS/Linux:**
+
+     ```bash
+     source venv/bin/activate
+     ```
+
+3. Install the required dependencies:
+
+   ```bash
+   pip install -r deepface/requirements.txt
+   ```
+
+4. Run the facial emotion detection service:
+
+   ```bash
+   python deepface/app.py
+   ```
+
+#### 2.2.2 Option 2: Using Conda
+
+1. Create a Conda environment with Python 3.10:
+
+   ```bash
+   conda create -n emotion_detection python=3.10
+   conda activate emotion_detection
+   ```
+
+2. Install the required dependencies:
+
+   ```bash
+   pip install -r deepface/requirements.txt
+   ```
+
+3. Run the facial emotion detection service:
+
+   ```bash
+   python deepface/app.py
+   ```
+
+### 2.3 Docker Deployment
+
+1. Start all services (MongoDB and conversation) using Docker Compose:
 
    ```bash
    docker-compose up -d
    ```
 
-   If you want to rebuild the images:
+   To rebuild images when changes are made:
 
    ```bash
    docker-compose up -d --build
    ```
 
-2. Access the conversation service: [http://localhost:7860](http://localhost:7860)
+2. Once deployed, access the conversation service at: [http://localhost:7860](http://localhost:7860)
 
-### Option 2: Hybrid Deployment
+## 3. Administration
 
-For MongoDB in Docker and conversation service running locally:
+### 3.1 MongoDB Management
 
-1. Start only the MongoDB service:
-
-   ```bash
-   docker-compose up -d mongo
-   ```
-
-2. Set up the conversation service locally:
-
-   a. Install Python dependencies:
+1. Connect to the MongoDB database:
 
    ```bash
-   cd conversation
-   pip install -r requirements.txt
+   docker exec -it mongo mongosh -u admin -p password --authenticationDatabase admin
    ```
 
-   b. Install FFmpeg (required for speech processing):
-      - Download from [FFmpeg's official site](https://ffmpeg.org/download.html)
-      - Add FFmpeg to your system PATH
-
-   c. Run the application:
+2. View conversation data:
 
    ```bash
-   python app.py
+   use conversations
+   db.users.find().pretty()
    ```
 
-3. Access the conversation service: [http://localhost:7860](http://localhost:7860)
+## 4. Troubleshooting
 
-## Facial Emotion Detection
+### 4.1 Docker Commands
 
-First we need another virtual environment.
+Common Docker commands for troubleshooting:
 
-```bash
-python -m venv venv
+- Access container shell:
 
-# Windows
-venv\Scripts\activate
+  ```bash
+  docker exec -it <container_id_or_name> /bin/bash
+  ```
 
-# MacOS
-source venv/bin/activate
-```
+- View container logs:
 
-Install necessary libs.
-```bash
-pip install -r requirements.txt
-```
+  ```bash
+  docker logs <container_id_or_name>
+  ```
 
-Because it is really hard for Docker Container to Use Camera, we can only start this service by 
+- Restart services:
 
-```bash
-python deepface/app.py
-```
+  ```bash
+  docker-compose restart
+  ```
 
-and we use docker extra_hosts to mapping localhost to docker internal hosts.
+- View logs for all services:
 
-## Administration
+  ```bash
+  docker-compose logs -f
+  ```
 
-### MongoDB Management
+- View logs for a specific service:
 
-Connect to the MongoDB instance:
-
-```bash
-docker exec -it mongo mongosh -u admin -p password --authenticationDatabase admin
-```
-
-View data in the conversations database:
-
-```bash
-use conversations
-db.users.find().pretty()
-```
-
-## Troubleshooting
-
-### Docker Commands
-
-Access a container shell:
-
-```bash
-docker exec -it <container_id_or_name> /bin/bash
-```
-
-View container logs:
-
-```bash
-docker logs <container_id_or_name>
-```
-
-Restart services:
-
-```bash
-docker-compose restart
-```
-
-View the logs of all services:
-
-```bash
-docker-compose logs -f
-```
-
-View the logs of a specific service:
-
-```bash
-docker-compose logs -f <service_name>
-```
+  ```bash
+  docker-compose logs -f <service_name>
+  ```
