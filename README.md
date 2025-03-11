@@ -66,6 +66,23 @@ For MongoDB in Docker and conversation service running locally:
 
 ## Facial Emotion Detection
 
+First we need another virtual environment.
+
+```bash
+python -m venv venv
+
+# Windows
+venv\Scripts\activate
+
+# MacOS
+source venv/bin/activate
+```
+
+Install necessary libs.
+```bash
+pip install -r requirements.txt
+```
+
 Because it is really hard for Docker Container to Use Camera, we can only start this service by 
 
 ```bash
