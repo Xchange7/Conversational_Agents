@@ -1,39 +1,40 @@
 version: "3.10"
 
 services:
-  conversation:
-    build:
-      context: ./conversation
-      dockerfile: Dockerfile
-    container_name: conversation_service
-    ports:
-      - "7860:7860"
-    depends_on:
-      - mongo
-    environment:
-      MONGO_URI: mongodb://admin:password@mongo:27017/
-
-#  deepface:
+#  conversation:
 #    build:
-#      context: ./deepface
-#      dockerfile: test
-#    container_name: deepface_service
+#      context: ./conversation
+#      dockerfile: Dockerfile
+##    container_name: conversation_service
 #    ports:
-#      - "5002:5000"  # 对外映射到5002
+#      - "7860:7860"
+#    depends_on:
+#      - mongo
+#      - deepface
+#    environment:
+#      MONGO_URI: mongodb://admin:password@mongo:27017/
+
+  deepface:
+    build:
+      context: ./deepface
+      dockerfile: Dockerfile
+#    container_name: deepface_service
+    ports:
+      - "5005:5005"  # 5005 port
 #    depends_on:
 #      - mongo
 
-  mongo:
-    image: mongo:latest
-    container_name: mongo
-    restart: always
-    ports:
-      - "27017:27017"
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: admin
-      MONGO_INITDB_ROOT_PASSWORD: password
-    volumes:
-      - ./data:/data/db # Location of DB
+#  mongo:
+#    image: mongo:latest
+#    container_name: mongo
+#    restart: always
+#    ports:
+#      - "27017:27017"
+#    environment:
+#      MONGO_INITDB_ROOT_USERNAME: admin
+#      MONGO_INITDB_ROOT_PASSWORD: password
+#    volumes:
+#      - ./data:/data/db # Location of DB
 #  mongo:
 #    build:
 #      context: ./MongoDB

@@ -39,7 +39,7 @@ def create_mental_health_chain_with_prompt(openai_api_key: str, temperature=0.5)
 
     system_template = """\
 You are a mental health consultant, skilled at listening, empathizing, and giving appropriate advice.
-Conversation background: You need to talk to the user gently and professionally to help them relieve stress or anxiety.
+Conversation background: You need to talk to the user gently and professionally to help them solving their problem.
     """
 
     user_template = """\

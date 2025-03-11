@@ -4,7 +4,7 @@ import os
 import numpy as np
 # from pyAudioAnalysis import audioFeatureExtraction, ShortTermFeatures
 from pyAudioAnalysis import ShortTermFeatures
-
+import requests
 import torch
 
 class EmotionAnalyzer:
@@ -12,7 +12,7 @@ class EmotionAnalyzer:
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
         self.model = AutoModelForSequenceClassification.from_pretrained(model_name)
 
-    def analyze_emotion(self, text: str) -> str:
+    def analyze_text_emotion(self, text: str) -> str:
         """
         Use a pretrained model to classify/analyze text sentiment.
         This is a simple example that classifies text sentiment into 1-5 star ratings,
@@ -24,6 +24,32 @@ class EmotionAnalyzer:
         # Find the highest scoring emotion label (1 to 5)
         predicted_label = scores.argmax() + 1  # argmax returns 0-4
         return f"{predicted_label}-star sentiment"  # You can change this to a more detailed classification
+
+    def analyze_face_emotion(docker_service_url: str = "http://127.0.0.1:5005") -> str:
+        """
+        调用另外一个 Docker 服务中的 deepface 模块，
+        从 /emotion 接口获取当前用户的表情信息
+
+        参数:
+            docker_service_url: Docker 服务的基础 URL，例如 "http://127.0.0.1:5005"
+
+        返回:
+            用户当前表情（例如 "happy", "sad" 等），如果调用失败则返回 "unknown"
+        """
+        try:
+            # 构造接口完整 URL
+            url = f"{docker_service_url}/emotion"
+            response = requests.get(url, timeout=5)
+            # 如果返回状态码正常，则解析 JSON 数据
+            if response.status_code == 200:
+                data = response.json()
+                return data.get("emotion", "unknown")
+            else:
+                print(f"请求失败，状态码: {response.status_code}")
+                return "unknown"
+        except Exception as e:
+            print(f"请求异常: {e}")
+            return "unknown"
 
 def extract_audio_features(audio_path: str):
     """
@@ -51,3 +77,4 @@ def predict_audio_emotion(features_mean):
     # e.g. emotion_classifier.predict(features_mean.reshape(1, -1))
     # Here we simply return a hardcoded value
     return "happy"
+
