@@ -155,12 +155,34 @@ def create_user_interface(db_instance, analyzer, chain, logger):
         # Create tabs but hide Chat initially and select User Info by default
         with gr.Tabs(selected="user_info_tab") as tabs:
             with gr.Tab("Chat", visible=False, id="chat_tab") as chat_tab:
+                # Reorganize layout with video feed on the right
                 with gr.Row():
-                    audio_input = gr.Audio(sources=["microphone"], type="filepath", label="Speak to the agent", scale=4)
-                    audio_submit = gr.Button("Submit Audio", scale=1)
-                with gr.Row():
-                    text_input = gr.Textbox(label="Or enter text here", scale=4)
-                    text_submit = gr.Button("Submit Text", scale=1)
+                    # Left side - inputs
+                    with gr.Column(scale=2):
+                        # First row on the left - audio input
+                        with gr.Row():
+                            audio_input = gr.Audio(sources=["microphone"], type="filepath", label="Speak to the agent", scale=4)
+                            audio_submit = gr.Button("Submit Audio", scale=1)
+                        
+                        # Second row on the left - text input
+                        with gr.Row():
+                            text_input = gr.Textbox(label="Or enter text here", scale=4)
+                            text_submit = gr.Button("Submit Text", scale=1)
+                    
+                    # Right side - video feed
+                    with gr.Column(scale=1):
+                        # Add video feed display
+                        video_display = gr.HTML(
+                            """
+                            <div style="display: flex; justify-content: center;">
+                                <img src="http://localhost:5005/video_feed" width="320" height="240" 
+                                    style="border-radius: 10px; border: 2px solid #ccc;">
+                            </div>
+                            """, 
+                            label="Camera Feed"
+                        )
+                
+                # Output area stays the same
                 state = gr.State([])
                 output_text = gr.Textbox(label="Response")
                 output_audio = gr.Audio(label="Agent's Speech", autoplay=True)
