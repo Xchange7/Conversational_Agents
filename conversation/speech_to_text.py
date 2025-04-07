@@ -3,12 +3,31 @@ import whisper
 import os
 import shutil
 import tempfile
+import subprocess
 from logger import Logger
 from pathlib import Path
 from test_whisper import test_whisper_transcription  # Import the encapsulated function
 
 # Initialize logger
 logger = Logger()
+
+def check_ffmpeg_installation():
+    """Check if FFmpeg is properly installed and accessible"""
+    try:
+        result = subprocess.run(["ffmpeg", "-version"], 
+                               stdout=subprocess.PIPE, 
+                               stderr=subprocess.PIPE,
+                               text=True,
+                               check=False)
+        if result.returncode == 0:
+            logger.log(f"FFmpeg is installed: {result.stdout.splitlines()[0]}")
+            return True
+        else:
+            logger.log_error(f"FFmpeg check failed: {result.stderr}")
+            return False
+    except Exception as e:
+        logger.log_error(f"Error checking FFmpeg: {e}")
+        return False
 
 def transcribe_audio(audio_input, model_name="base") -> str:
     """
@@ -21,6 +40,11 @@ def transcribe_audio(audio_input, model_name="base") -> str:
     temp_file = None
     
     try:
+        # Verify FFmpeg installation first
+        ffmpeg_ok = check_ffmpeg_installation()
+        if not ffmpeg_ok:
+            logger.log_warning("FFmpeg installation issue detected. Audio transcription may fail.")
+        
         if not audio_input:
             logger.log_error("No audio input provided")
             raise ValueError("No audio input provided")
@@ -48,8 +72,22 @@ def transcribe_audio(audio_input, model_name="base") -> str:
         temp_file = os.path.join(temp_dir, f"whisper_audio_{os.getpid()}.wav")
         logger.log(f"Creating temporary audio file at: {temp_file}")
         
-        # Copy the file to ensure we have a stable file that won't be deleted
-        shutil.copy2(audio_path, temp_file)
+        # Convert the audio file to WAV format using FFmpeg directly for better control
+        try:
+            logger.log(f"Converting audio to WAV format using FFmpeg...")
+            result = subprocess.run(
+                ["ffmpeg", "-y", "-i", str(audio_path), "-ar", "16000", "-ac", "1", "-c:a", "pcm_s16le", temp_file],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                check=True
+            )
+            logger.log(f"FFmpeg conversion successful")
+        except subprocess.CalledProcessError as e:
+            logger.log_error(f"FFmpeg conversion failed: {e.stderr}")
+            # Fallback to direct copy if conversion fails
+            logger.log(f"Falling back to direct file copy...")
+            shutil.copy2(audio_path, temp_file)
         
         if not os.path.exists(temp_file):
             logger.log_error(f"Failed to create temporary file at: {temp_file}")

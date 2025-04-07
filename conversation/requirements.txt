@@ -1,6 +1,7 @@
 openai==1.64.0
 langchain==0.3.19
 langchain_community==0.3.18
+langgraph>=0.0.27
 SpeechRecognition==3.8.1
 pydub==0.25.1
 
@@ -9,7 +10,7 @@ openai-whisper
 
 transformers==4.49.0
 # torch==2.6.0
-dotenv
+python-dotenv
 langchain_openai
 pymongo
 numpy
@@ -20,3 +21,6 @@ gtts
 langdetect
 gradio
 loguru
+pydantic>=2.0.0
+streamlit
+streamlit-audiorecorder
