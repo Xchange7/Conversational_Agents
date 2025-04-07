@@ -31,13 +31,14 @@ try:
         repetition_penalty=1.03,
     )
     llm = ChatHuggingFace(llm=llm)
+    print("HuggingFaceEndpoint initialized successfully.")
 except Exception as e:
-    print(f"Error initializing HuggingFaceEndpoint: {e}")
     # Fallback to OpenAI if HuggingFace fails
     llm = ChatOpenAI(
         model="gpt-3.5-turbo",
         temperature=0.7
     )
+    print("HuggingFaceEndpoint initialization failed, using OpenAI instead.")
 
 class ConversationManager:
     """Manages conversations with users, storing history and generating responses"""

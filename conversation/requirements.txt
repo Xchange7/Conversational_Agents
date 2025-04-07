@@ -10,8 +10,9 @@ openai-whisper
 
 transformers==4.49.0
 # torch==2.6.0
-python-dotenv
 langchain_openai
+langchain_huggingface
+python-dotenv
 pymongo
 numpy
 pyAudioAnalysis
