@@ -53,7 +53,8 @@ if __name__ == "__main__":
         ".vscode",
         "data",
         "logs",
-        "__pycache__"
+        "__pycache__",
+        "conversation/__pycache__",
     ]
 
     for directory in recursive_directories:
