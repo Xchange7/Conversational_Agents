@@ -32,7 +32,7 @@ def test_whisper_transcription(audio_path):
         try:
             model = whisper.load_model("base")
         except Exception as model_error:
-            if "SHA256 checksum does not not match" in str(model_error):
+            if "SHA256 checksum does not match" in str(model_error):
                 # Delete the corrupted model files
                 logger.log("Checksum error detected. Attempting to delete corrupted model files...")
                 model_dir = os.path.expanduser("~/.cache/whisper")
