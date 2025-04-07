@@ -1,5 +1,6 @@
 import whisper
 import os
+import shutil
 from logger import Logger
 
 # Initialize logger
@@ -27,9 +28,34 @@ def test_whisper_transcription(audio_path):
     
     try:
         logger.log("Loading whisper model (base)...")
-        model = whisper.load_model("base")
+        # Try to load the model, handling potential checksum errors
+        try:
+            model = whisper.load_model("base")
+        except Exception as model_error:
+            if "SHA256 checksum does not match" in str(model_error):
+                # Delete the corrupted model files
+                logger.log("Checksum error detected. Attempting to delete corrupted model files...")
+                model_dir = os.path.expanduser("~/.cache/whisper")
+                if os.path.exists(model_dir):
+                    try:
+                        shutil.rmtree(model_dir)
+                        logger.log("Deleted corrupted model directory. Retrying download...")
+                    except Exception as delete_error:
+                        logger.log_error(f"Failed to delete model directory: {delete_error}")
+                
+                # Retry loading the model
+                model = whisper.load_model("base")
+            else:
+                raise
+        
+        # Set explicit FFmpeg parameters
         logger.log("Transcribing audio...")
-        result = model.transcribe(audio_path)
+        result = model.transcribe(
+            audio_path,
+            fp16=False,  # Use float32 for better compatibility
+            verbose=True  # Show detailed logs during transcription
+        )
+        
         logger.log(f"Transcription successful")
         return {"success": True, "result": result}
     except Exception as e:

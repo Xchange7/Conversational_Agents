@@ -5,7 +5,6 @@ import gradio as gr
 
 from speech_to_text import transcribe_audio
 from emotion_analyzer import EmotionAnalyzer
-from mental_health_chain import create_mental_health_chain_with_prompt
 from text_to_speech import text_to_speech
 from datetime import datetime
 from pathlib import Path
@@ -15,59 +14,112 @@ from db import DB, User, Conversation
 # Import the logger class from logger
 from logger import Logger
 
+# Import the LangGraph workflow
+from conversation_workflow import get_mental_health_workflow
 
-def create_user_interface(db_instance, analyzer, chain, logger):
+
+def create_user_interface(db_instance, analyzer, logger):
     current_user = None
+    workflow = None
     
     # Function to check login status
     def is_logged_in():
         return current_user is not None
 
+    def initialize_user(user_name):
+        """Initialize user session by checking if user exists"""
+        nonlocal current_user, workflow
+        
+        # Check if user exists
+        existing_user = db_instance.get_user_by_name(user_name)
+        if existing_user:
+            current_user = existing_user
+            # Initialize workflow with existing user
+            workflow = get_mental_health_workflow(
+                user_name=existing_user.user_name,
+                user_age=existing_user.user_age, 
+                user_problem=existing_user.user_problem,
+                is_new_user=False,
+                user_id=str(existing_user.user_id)
+            )
+            
+            # Start conversation to get greeting
+            initial_state = workflow.invoke({})
+            greeting = initial_state.get('response', f"Welcome back, {user_name}!")
+            
+            return greeting, gr.update(visible=True), gr.update(visible=False), gr.update(visible=False)
+        else:
+            # Show registration form for new users
+            return f"New user registration for {user_name}", gr.update(visible=False), gr.update(visible=True), gr.update(visible=True)
+
+    def register_new_user(user_name, user_age, user_problem):
+        """Register a new user"""
+        nonlocal current_user, workflow
+        
+        # Create new user
+        new_user = User(user_name, user_age, user_problem)
+        success = db_instance.init_user(new_user)
+        
+        if success:
+            current_user = new_user
+            # Initialize workflow with new user
+            workflow = get_mental_health_workflow(
+                user_name=user_name,
+                user_age=user_age,
+                user_problem=user_problem,
+                is_new_user=True,
+                user_id=str(new_user.user_id)
+            )
+            
+            # Start conversation to get greeting
+            initial_state = workflow.invoke({})
+            greeting = initial_state.get('response', f"Welcome, {user_name}! How can I help you today?")
+            
+            return greeting, gr.update(visible=True), gr.update(visible=False), gr.update(visible=False)
+        else:
+            return "Registration failed. Please try again.", gr.update(visible=False), gr.update(visible=True), gr.update(visible=True)
+
     def respond_to_text(message, history=None):
         logger.log("-------------------Start RESPONDING TO TEXT-------------------")
-        nonlocal current_user
-        if current_user is None:
+        nonlocal current_user, workflow
+        if current_user is None or workflow is None:
             return "Please initialize user first.", None, ""
 
         logger.log(f"[Text Input]: {message}")
 
-        text_emotion_label = analyzer.analyze_text_emotion(message)
-        facial_emotion_label = analyzer.analyze_face_emotion()
+        # Analyze emotions
+        analyzer = EmotionAnalyzer()
+        text_emotion = analyzer.analyze_text_emotion(message)
+        facial_emotion = analyzer.analyze_face_emotion()
         
-        logger.log(f"[Text Emotion]: {text_emotion_label}")
-        logger.log(f"[Facial Emotion]: {facial_emotion_label}")
+        # Update the state with user input
+        state = workflow.invoke({
+            "input": message,
+            "input_type": "text",
+            "current_emotion": {
+                "text_emotion": text_emotion,
+                "facial_emotion": facial_emotion
+            }
+        })
 
-        # Use Conversational Agent to Generate Response
+        # Get the response from the state
+        response_text = state.get('response', 'ERROR: No response from agent')
+        logger.log(f"[AI Response to Text]: {response_text}")
+
         try:
-            combined_input = f"text emotion: {text_emotion_label}\nfacial emotion:{facial_emotion_label}\ntext: {message}"
-            logger.log(f"[Combined Input]: {combined_input}")
-            response = chain.invoke({"input": combined_input})
-
-            logger.log(f"[AI Response to Text]: {response['text']}")
-
-            now = datetime.now()
-            timestamp = now.strftime("%Y-%m-%d %H:%M:%S")
-            one_conversation = Conversation(combined_input, response['text'], timestamp)
-            # Update Conversation
-            db_instance.update_conversation(current_user, one_conversation)
-
-            try:
-                # Generate audio directly for Gradio UI
-                audio_data = text_to_speech(response['text'])
-            except Exception as e:
-                logger.log_error(f"Error during text-to-speech conversion: {e}")
-                return f"Error: Text-to-speech failed: {e}", None, ""
-
-            # Return response and empty value for text_input to clear it
-            return response['text'], audio_data, ""
+            # Generate audio directly for Gradio UI
+            audio_data = text_to_speech(response_text)
         except Exception as e:
-            logger.log_error(f"Failed to generate response to text: {e}")
-            return f"Error: {e}", None, ""
+            logger.log_error(f"Error during text-to-speech conversion: {e}")
+            return f"Error: Text-to-speech failed: {e}", None, ""
+
+        # Return response and empty value for text_input to clear it
+        return response_text, audio_data, ""
 
     def respond_to_audio(audio_input, history=None):
         logger.log("-------------------Start RESPONDING TO AUDIO-------------------")
-        nonlocal current_user
-        if current_user is None:
+        nonlocal current_user, workflow
+        if current_user is None or workflow is None:
             return "Please initialize user first.", None, None
 
         if not audio_input:
@@ -78,82 +130,60 @@ def create_user_interface(db_instance, analyzer, chain, logger):
             transcribed_text = transcribe_audio(audio_input, model_name="base")
             logger.log(f"[Audio Transcription]: {transcribed_text}")
             
-            # Emotion Analysis for audio and transcribed text
-            text_emotion_label = analyzer.analyze_text_emotion(transcribed_text)
-            # Speech Emotion Analysis
-            speech_emotion_label = analyzer.analyze_speech_emotion(audio_input)
-            # Facial Emotion Analysis
-            facial_emotion_label = analyzer.analyze_face_emotion()
+            # Analyze emotions
+            analyzer = EmotionAnalyzer()
+            text_emotion = analyzer.analyze_text_emotion(transcribed_text)
+            speech_emotion = analyzer.analyze_speech_emotion(audio_input)
+            facial_emotion = analyzer.analyze_face_emotion()
             
-            logger.log(f"[Text Emotion]: {text_emotion_label}")
-            logger.log(f"[Speech Emotion]: {speech_emotion_label}")
-            logger.log(f"[Facial Emotion]: {facial_emotion_label}")
+            # Update the state with transcribed text and emotions
+            state = workflow.invoke({
+                "input": transcribed_text,
+                "input_type": "audio",
+                "audio_path": audio_input,
+                "current_emotion": {
+                    "text_emotion": text_emotion,
+                    "speech_emotion": speech_emotion,
+                    "facial_emotion": facial_emotion
+                }
+            })
 
-            # Use Conversational Agent to Generate Response
-            combined_input = f"text emotion: {text_emotion_label}\nfacial emotion:{facial_emotion_label}\nspeech emotion: {speech_emotion_label}\n text: {transcribed_text}"
-            response = chain.invoke({"input": combined_input})
-
-            logger.log(f"[AI Response to Audio]: {response['text']}")
-
-            now = datetime.now()
-            timestamp = now.strftime("%Y-%m-%d %H:%M:%S")
-            one_conversation = Conversation(combined_input, response['text'], timestamp)
-            # Update Conversation
-            db_instance.update_conversation(current_user, one_conversation)
+            # Get the response from the state
+            response_text = state.get('response', 'ERROR: No response from agent')
+            logger.log(f"[AI Response to Audio]: {response_text}")
 
             try:
                 # Generate audio directly for Gradio UI
-                audio_data = text_to_speech(response['text'])
+                audio_data = text_to_speech(response_text)
             except Exception as e:
                 logger.log_error(f"Error during text-to-speech conversion: {e}")
                 return f"Error: Text-to-speech failed: {e}", None, None
 
             # Return response and clear audio input
-            return response['text'], audio_data, None
+            return response_text, audio_data, None
         except Exception as e:
             logger.log_error(f"Failed to process audio: {e}")
             return f"Error processing audio: {e}", None, None
 
-    def create_new_user(user_name_input, user_age_input, user_problem_input):
-        nonlocal current_user
-        # Check if the user already exists
-        existing_user = db_instance.get_user_by_name(user_name_input)
-        if existing_user:
-            return f"User {user_name_input} already exists! Please log in instead.", gr.update(visible=False), gr.update(visible=True)
-
-        new_user = User(user_name_input, user_age_input, user_problem_input)
-        db_instance.init_user(new_user)
-        if new_user.user_id:
-            current_user = new_user
-            return f"User {user_name_input} created successfully!", gr.update(visible=True), gr.update(visible=False)
-        else:
-            return f"Failed to create user {user_name_input}.", gr.update(visible=False), gr.update(visible=True)
-
-    def login_user(user_name_input):
-        nonlocal current_user
-        # Check if the user exists
-        existing_user = db_instance.get_user_by_name(user_name_input)
-        if not existing_user:
-            return "User not found. Please create a new user or check the username.", gr.update(visible=False), gr.update(visible=True)
-
-        current_user = existing_user
-        return f"User {user_name_input} logged in successfully!", gr.update(visible=True), gr.update(visible=False)
-    
-    def logout_user():
-        nonlocal current_user
-        current_user = None
-        return "You have been logged out.", gr.update(visible=False), gr.update(visible=True), "", "", 0, ""
-
-    def get_user_info():
-        if current_user:
-            return current_user.user_name, current_user.user_age, current_user.user_problem
-        return "", 0, ""
-
     with gr.Blocks(theme=gr.themes.Soft()) as demo:
         gr.Markdown("# Psychological Doctor Agent")
         
-        # Create tabs but hide Chat initially and select User Info by default
         with gr.Tabs(selected="user_info_tab") as tabs:
+            with gr.Tab("User Info", id="user_info_tab"):
+                # Initial login form
+                with gr.Row():
+                    user_name_input = gr.Textbox(label="Username")
+                    login_button = gr.Button("Login/Register")
+                
+                # Registration form (initially hidden)
+                with gr.Row(visible=False) as registration_form:
+                    user_age_input = gr.Number(label="Age")
+                    user_problem_input = gr.Textbox(label="What brings you here today?")
+                    register_button = gr.Button("Complete Registration")
+                
+                # Status message
+                status_message = gr.Textbox(label="Status", interactive=False)
+            
             with gr.Tab("Chat", visible=False, id="chat_tab") as chat_tab:
                 # Reorganize layout with video feed on the right
                 with gr.Row():
@@ -206,62 +236,18 @@ def create_user_interface(db_instance, analyzer, chain, logger):
                     outputs=[output_text, output_audio, audio_input]
                 )
 
-            with gr.Tab("User Info", id="user_info_tab") as user_info_tab:
-                # Login/Register UI (visible when not logged in)
-                with gr.Group(visible=True) as login_group:
-                    with gr.Row():
-                        user_mode = gr.Radio(["Login", "Create User"], label="Select Mode", value="Login")
-                    name_input = gr.Textbox(label="Name")
-                    age_input = gr.Number(label="Age", visible=False)
-                    problem_input = gr.Textbox(label="Problem", visible=False)
-                    submit_button = gr.Button("Submit")
-                    user_output = gr.Textbox(label="User Status")
-
-                # User Profile UI (visible when logged in)
-                with gr.Group(visible=False) as profile_group:
-                    gr.Markdown("## Your Profile")
-                    display_name = gr.Textbox(label="Name", interactive=False)
-                    display_age = gr.Number(label="Age", interactive=False)
-                    display_problem = gr.Textbox(label="Problem", interactive=False)
-                    logout_button = gr.Button("Logout")
-
-                def toggle_visibility(mode):
-                    is_create = mode == "Create User"
-                    return {
-                        age_input: gr.update(visible=is_create),
-                        problem_input: gr.update(visible=is_create),
-                    }
-
-                user_mode.change(
-                    toggle_visibility,
-                    inputs=[user_mode],
-                    outputs=[age_input, problem_input],
-                )
-
-                def submit_user_info(mode, name, age, problem):
-                    if mode == "Create User":
-                        message, chat_visible, login_visible = create_new_user(name, age, problem)
-                        # Update profile display if login successful
-                        if current_user:
-                            return message, chat_visible, login_visible, current_user.user_name, current_user.user_age, current_user.user_problem
-                        return message, chat_visible, login_visible, "", 0, ""
-                    else:
-                        message, chat_visible, login_visible = login_user(name)
-                        # Update profile display if login successful
-                        if current_user:
-                            return message, chat_visible, login_visible, current_user.user_name, current_user.user_age, current_user.user_problem
-                        return message, chat_visible, login_visible, "", 0, ""
-
-                submit_button.click(
-                    submit_user_info,
-                    inputs=[user_mode, name_input, age_input, problem_input],
-                    outputs=[user_output, chat_tab, login_group, display_name, display_age, display_problem],
-                )
-
-                logout_button.click(
-                    logout_user,
-                    outputs=[user_output, chat_tab, login_group, display_name, display_age, display_problem],
-                )
+        # Connect the components
+        login_button.click(
+            initialize_user,
+            inputs=[user_name_input],
+            outputs=[status_message, chat_tab, registration_form]
+        )
+        
+        register_button.click(
+            register_new_user,
+            inputs=[user_name_input, user_age_input, user_problem_input],
+            outputs=[status_message, chat_tab, registration_form]
+        )
 
     return demo
 
@@ -269,7 +255,6 @@ def create_user_interface(db_instance, analyzer, chain, logger):
 def main():
     # Initialize logger
     logger = Logger()
-    
     load_dotenv()
     use_docker_for_conversation = os.getenv("USE_DOCKER_FOR_CONVERSATION", "true")
     openai_api_key = os.getenv("OPENAI_API_KEY")
@@ -277,22 +262,25 @@ def main():
         logger.log_error("Please set OPENAI_API_KEY in environment variables or .env file")
         sys.exit(1)
 
-    # connect to MongoDB
-    db_instance = DB()
+    try:
+        # Initialize database
+        db_instance = DB()
+        logger.log("Database initialized successfully")
+    except Exception as e:
+        logger.log_error(f"Database initialization failed: {e}")
+        sys.exit(1)
 
-    # Emotion Analyzer and Conversation Chain
-    analyzer = EmotionAnalyzer()
-    chain = create_mental_health_chain_with_prompt(openai_api_key)
+    try:
+        # Initialize emotion analyzer
+        analyzer = EmotionAnalyzer()
+        logger.log("Emotion Analyzer initialized successfully")
+    except Exception as e:
+        logger.log_error(f"Emotion Analyzer initialization failed: {e}")
+        sys.exit(1)
 
-    # Create Gradio Interface with fixed day theme
-    ui = create_user_interface(db_instance, analyzer, chain, logger)
-
-    if use_docker_for_conversation.lower() == "true":
-        logger.log("Conversation service running in Docker mode")
-        ui.launch(server_name="0.0.0.0", share=False)
-    else:
-        logger.log("Conversation service running in local mode")
-        ui.launch(share=False)
+    # Create and launch the interface
+    interface = create_user_interface(db_instance, analyzer, logger)
+    interface.launch(server_name="0.0.0.0")
 
 
 if __name__ == "__main__":
