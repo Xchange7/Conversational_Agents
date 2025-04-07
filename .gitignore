@@ -2,6 +2,7 @@
 data
 
 dialog-sample
+dialog-workflow
 
 __pycache__
 ./*/__pycache__
