@@ -7,16 +7,17 @@ This repository contains the group project for the TU Delft DSAIT4065 (previousl
 - [Conversational Agents](#conversational-agents)
   - [Table of Contents](#table-of-contents)
   - [1. Prerequisites](#1-prerequisites)
-  - [2. Setup Instructions](#2-setup-instructions)
-    - [2.1 Environment Variables Setup](#21-environment-variables-setup)
-    - [2.2 Facial Emotion Detection Setup](#22-facial-emotion-detection-setup)
-      - [2.2.1 Option 1: Using venv](#221-option-1-using-venv)
-      - [2.2.2 Option 2: Using Conda](#222-option-2-using-conda)
-    - [2.3 Docker Deployment](#23-docker-deployment)
-  - [3. Administration](#3-administration)
-    - [3.1 MongoDB Management](#31-mongodb-management)
-  - [4. Troubleshooting](#4-troubleshooting)
-    - [4.1 Docker Commands](#41-docker-commands)
+  - [2. System Interface](#2-system-interface)
+  - [3. Setup Instructions](#3-setup-instructions)
+    - [3.1 Environment Variables Setup](#31-environment-variables-setup)
+    - [3.2 Facial Emotion Detection Setup](#32-facial-emotion-detection-setup)
+      - [3.2.1 Option 1: Using venv](#321-option-1-using-venv)
+      - [3.2.2 Option 2: Using Conda](#322-option-2-using-conda)
+    - [3.3 Docker Deployment](#33-docker-deployment)
+  - [4. Administration](#4-administration)
+    - [4.1 MongoDB Management](#41-mongodb-management)
+  - [5. Troubleshooting](#5-troubleshooting)
+    - [5.1 Docker Commands](#51-docker-commands)
 
 ## 1. Prerequisites
 
@@ -24,19 +25,33 @@ This repository contains the group project for the TU Delft DSAIT4065 (previousl
 - **Python 3.10 or higher** (for local deployment)
 - **OpenAI API key** (for conversation capabilities)
 
-## 2. Setup Instructions
+## 2. System Interface
 
-### 2.1 Environment Variables Setup
+The psychological doctor agent features a [Streamlit-based](https://github.com/streamlit/streamlit) web interface that provides the following functionality:
+
+- User registration and login system
+- Text-based conversation with the agent
+- Audio input capability via microphone
+- Real-time facial emotion detection (Not shown in the demo figure below) 
+- Text-to-speech response playback
+
+Below is a screenshot of the user interface:
+
+![Psychological Doctor Agent UI](./figs/ui.png)
+
+## 3. Setup Instructions
+
+### 3.1 Environment Variables Setup
 
 Create a `.env` file in the `./conversation` directory based on the provided `./conversation/.env.default` template.
 
-### 2.2 Facial Emotion Detection Setup
+### 3.2 Facial Emotion Detection Setup
 
 > **Note:** Since camera access is challenging within Docker containers, this service runs ***locally*** with Docker mapping localhost to internal container hosts through `extra_hosts`.
 
 To set up the facial emotion detection component, follow one of the options below:
 
-#### 2.2.1 Option 1: Using venv
+#### 3.2.1 Option 1: Using venv
 
 1. Create a Python virtual environment:
 
@@ -70,7 +85,7 @@ To set up the facial emotion detection component, follow one of the options belo
    python deepface/app.py
    ```
 
-#### 2.2.2 Option 2: Using Conda
+#### 3.2.2 Option 2: Using Conda
 
 1. Create a Conda environment with Python 3.10:
 
@@ -91,7 +106,7 @@ To set up the facial emotion detection component, follow one of the options belo
    python deepface/app.py
    ```
 
-### 2.3 Docker Deployment
+### 3.3 Docker Deployment
 
 1. Start all services (MongoDB and conversation) using Docker Compose:
 
@@ -107,9 +122,9 @@ To set up the facial emotion detection component, follow one of the options belo
 
 2. Once deployed, access the Streamlit conversation interface at: [http://localhost:8501](http://localhost:8501)
 
-## 3. Administration
+## 4. Administration
 
-### 3.1 MongoDB Management
+### 4.1 MongoDB Management
 
 1. Connect to the MongoDB database:
 
@@ -124,9 +139,9 @@ To set up the facial emotion detection component, follow one of the options belo
    db.users.find().pretty()
    ```
 
-## 4. Troubleshooting
+## 5. Troubleshooting
 
-### 4.1 Docker Commands
+### 5.1 Docker Commands
 
 Common Docker commands for troubleshooting:
 
