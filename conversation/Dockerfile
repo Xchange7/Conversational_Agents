@@ -19,11 +19,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy project code to working directory
 COPY . .
 
-# If the application needs to listen to ports (e.g., using Flask/FastAPI), expose ports
-# EXPOSE 8000
-EXPOSE 7860
+# Expose Streamlit port (8501 is the default Streamlit port)
+EXPOSE 8501
 
 ENV TOKENIZERS_PARALLELISM=false
 ENV MONGO_URI=mongodb://admin:password@mongo:27017/
 
-CMD ["python", "app.py"]
+# Run Streamlit application instead of app.py
+CMD ["streamlit", "run", "new_app.py", "--server.port=8501", "--server.address=0.0.0.0"]

@@ -105,7 +105,7 @@ To set up the facial emotion detection component, follow one of the options belo
    docker-compose up -d --build
    ```
 
-2. Once deployed, access the conversation service at: [http://localhost:7860](http://localhost:7860)
+2. Once deployed, access the Streamlit conversation interface at: [http://localhost:8501](http://localhost:8501)
 
 ## 3. Administration
 

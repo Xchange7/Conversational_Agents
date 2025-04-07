@@ -7,7 +7,7 @@ services:
       dockerfile: Dockerfile
 #    container_name: conversation_service
     ports:
-      - "7860:7860"
+      - "8501:8501"  # Expose Streamlit's default port instead of 7860
     depends_on:
       - mongo
 #      - deepface
